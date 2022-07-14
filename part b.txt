@@ -59,21 +59,16 @@ ylabel(' amplitude(volt0');
 Rx_data=[];
 Rx_sig=Tx_sig; % Received signal
 for(i=1:1:length(data)/2)
-
 % inphase coherent detector 
 Z_in=Rx_sig((i-1)*length(t)+1:i*length(t)).*cos(2*pi*f*t); 
-
-
 Z_in_intg=(trapz(t,Z_in))*(2/T);
 if(Z_in_intg>0) % Decision
 Rx_in_data=1;
 else
 Rx_in_data=0; 
 end
-
 % Quadrature coherent detector
 Z_qd=Rx_sig((i-1)*length(t)+1:i*length(t)).*sin(2*pi*f*t);
-
 
 Z_qd_intg=(trapz(t,Z_qd))*(2/T);%integration using trapizodial rule
 if (Z_qd_intg>0)% Decision
@@ -81,13 +76,59 @@ Rx_qd_data=1;
 else
 Rx_qd_data=0; 
 end
-
-
 Rx_data=[Rx_dataRx_in_dataRx_qd_data];
 end
-
-
 figure(3)
 stem(Rx_data,'linewidth',3) 
 title(' Received data ');
 axis([ 0 11 0 1.5]), grid on;
+
+
+
+
+DPSK Signal
+
+clc;
+clearall;
+closeall;
+% Input data
+N = 1e6;
+EbN0dB = 0:2:16; 
+M = 2;
+% Constellation 2-DPSK
+refArray = [ 1.0000 + 0.0000i 0.0000 + 1.0000i -1.0000 + 0.0000i -0.0000 - 1.0000i];
+symErrSimulated = zeros(1,length(EbN0dB));
+k = log2(M);
+EsN0dB = EbN0dB + 10*log10(k);
+data = 2*ceil(M.*rand(N,1))-1;
+data_diff = filter(1,[1 -1],data);
+s = refArray(mod(data_diff,2*M)+1);
+index =1;
+for x = EsN0dB,
+noiseVariance = 1/(10.^(x/10));%Standard deviation for AWGN Noise
+noiseSigma = sqrt(noiseVariance/2);
+noise = noiseSigma*(randn(1,N)+1i*randn(1,N));
+received = s + noise; % additive white gaussian noise
+estPhase = angle(received);
+est_diffPhase = filter([1 -1],1,estPhase)*M/pi;
+y = mod(2*floor(est_diffPhase/2)+1,2*M); % quantizing
+symErrSimulated(1,index) = sum(y~=data')/(N*k);
+index=index+1;
+end
+EbN0lin = 10.^(EbN0dB/10);
+symErrTheory = 0.5*exp(-EbN0lin);
+figure;
+semilogy(EbN0dB,symErrTheory,'b','LineWidth',1.5);hold on;
+semilogy(EbN0dB,symErrSimulated,'r*','LineWidth',1.5);hold on;
+legend({'Theory','Simulated'})
+gridon;
+xlabel('Eb/N0(dB)');
+ylabel('Bit Error Rate (Pb)');
+title('Simulation BER vs. Theoretical BER for Binary DPSK');
+
+
+
+
+
+
+
